@@ -1,0 +1,12 @@
+pandas
+numpy<2.2
+streamlit
+plotly
+metalog
+matplotlib
+scipy
+pyyaml
+joblib
+numba
+duckdb
+openpyxl
