@@ -1,6 +1,6 @@
 # Vehicle Operating Cost Forecast App
 
-This project is an interactive web application (built with [Streamlit](https://streamlit.io/)) that forecasts and compares the net present value (NPV) of operating different vehicle models. It leverages 2016 U.S. Department of Energy data, focusing on **North American gasoline** and **electric** models only. By configuring distributions for parameters like fuel price, annual distance, and interest rate, users can run Monte Carlo simulations to see how costs might vary under different assumptions about the future.
+This project is an interactive web application (built with [Streamlit](https://streamlit.io/)) that forecasts and compares the net present value (NPV) of operating different vehicle models. It leverages 2016-2025 U.S. Department of Energy data, focusing on **North American gasoline** and **electric** models only. By configuring distributions for parameters like fuel price, annual distance, and interest rate, users can run Monte Carlo simulations to see how costs might vary under different assumptions about the future.
 
 ---
 

@@ -30,7 +30,6 @@ def get_bounds():
                 'Parameter': distribution['label'],
                 'Lower Bound': distribution['min_value'],
                 'Upper Bound': distribution['max_value'],
-                'Impact': distribution['impact'],
             }
         )
 
