@@ -193,7 +193,7 @@ class Layout:
             **Usage**: Pick one or two models in the Controls tab, then run a 
             sensitivity analysis on the Net Present Value (NPV). This tab recalculates 
             the NPV while fixing each parameter (fuel price, interest rate, etc.) 
-            to its low or high bound, showing which parameters have the most 
+            to its low or high bound (P10/P90), showing which parameters have the most 
             significant impact and in which direction (increasing or decreasing NPV).
 
             **Note**
