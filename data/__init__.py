@@ -6,6 +6,7 @@ data module
 
 import pandas as pd
 import yaml
+import streamlit as st
 
 models = pd.read_csv("data/models.csv")
 
@@ -34,3 +35,6 @@ def get_bounds():
         )
 
     return pd.DataFrame(bounds)
+
+
+

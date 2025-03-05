@@ -15,46 +15,32 @@ class Layout:
 
     @staticmethod
     def models(*args, **kwargs):
-        # """
-        # Displays a DataFrame containing vehicle models.
-
-        # Currently commented-out code shows how this method could be expanded
-        # to visualize model performance via Plotly charts (e.g. bar charts showing
-        # efficiency metrics). This method can be used if you want to show a list
-        # of available models in the UI.
-        # """
-        # st.dataframe(data.models, use_container_width=True, height=900, hide_index=True)
-
-        # """
-        # Allows the user to filter the 'data.models' DataFrame by vehicle class, year,
-        # and then select either the best (lowest kWh/km) or worst (highest kWh/km) models.
-
-        # A single Plotly bar chart is created to visualize these models, grouped by fuel type.
-        # """
         st.header("Models: Find Best/Worst-Performing Vehicles")
         st.markdown(
             """
             **Usage**: This tab helps you explore and filter the dataset of available vehicles, 
             so you can identify the best (lowest) or worst (highest) kWh/km in a given driving scenario. 
-            Choose a vehicle class and year, select how many top or bottom vehicles you want, 
+            Choose a vehicle class, year, fuel type, and how many top or bottom vehicles you want, 
             then view the resulting bar chart comparing their efficiencies.
             """
         )
         st.subheader("Find Best or Worst Efficiency Models")
 
-        # Get unique classes and years from the data
+        # Get unique classes, years, and fuels from the data
         classes = sorted(list(data.models["Veh Class"].unique()))
         years = sorted(list(data.models["Year"].unique()))
+        fuels = sorted(list(data.models["Fuel"].unique()))  # e.g. ["Gasoline", "Electricity"]
 
         # UI Inputs
-
-        cols = st.columns(5)
+        # Create 6 columns so we have room for fuel type
+        cols = st.columns(6)
 
         with cols[0]:
-            selected_class = st.selectbox("Select Vehicle Class", classes)
+            selected_class = st.selectbox("Select Vehicle Class", classes, index=None)
         with cols[1]:
             selected_year = st.selectbox("Select Year", years, index=None)
         with cols[2]:
+            # "Best" means find the lowest kWh/km; "Worst" means find the highest kWh/km
             best_worst = st.selectbox("Show Best or Worst?", ["Best", "Worst"])
         with cols[3]:
             top_n = st.number_input(
@@ -66,15 +52,24 @@ class Layout:
                 ["Combined", "City", "Highway"],
                 key="select_models_scenario",
             )
+        with cols[5]:
+            selected_fuel = st.selectbox("Select Fuel Type", fuels, index=None)
 
-        mask = data.models["Veh Class"] == selected_class
-
+        # Start filtering the data by class, year, and fuel
+        mask = data.models.ID == data.models.ID
+        if selected_class:
+            mask &= (data.models["Veh Class"] == selected_class)
         if selected_year:
-            mask &= data.models["Year"] == selected_year
+            mask &= (data.models["Year"] == selected_year)
+        if selected_fuel:
+            mask &= (data.models["Fuel"] == selected_fuel)
+
         # Filter the DataFrame by the user’s selection
         df_filtered = data.models[mask]
 
-        # Group the filtered data by fuel type and retrieve top/bottom N
+        # Group the filtered data by fuel type (though at this point
+        # we expect only one selected_fuel in df_filtered),
+        # then retrieve top/bottom N
         subsets = []
         for fuel_type, group in df_filtered.groupby("Fuel"):
             if best_worst == "Best":
@@ -83,7 +78,6 @@ class Layout:
             else:
                 # 'nlargest' picks the highest kWh/km
                 subset = group.nlargest(top_n, scenario)
-
             subsets.append(subset)
 
         # If we found any matching vehicles, plot them
@@ -95,7 +89,10 @@ class Layout:
                 y=scenario,
                 color="Fuel",
                 barmode="group",
-                title=f"{best_worst} {top_n} by kWh/km for {selected_class} in {selected_year}",
+                title=(
+                    f"{best_worst} {top_n} by kWh/km "
+                    f"({selected_fuel}, {selected_class} in {selected_year})"
+                ),
                 hover_data=["Year", "Veh Class", "Fuel"],
             )
             fig.update_layout(height=700, hovermode="x unified")
@@ -206,26 +203,10 @@ class Layout:
         )
         if selections:
 
-            col1, col2 = st.columns(2)
-            with col1:
-                scenario = st.selectbox(
-                    "Pick the driving scenario", options=["Combined", "City", "Highway"]
-                )
-            with col2:
-                percentile = st.number_input(
-                    "Select Percentile for Baseline",
-                    min_value=1,
-                    max_value=100,
-                    value=50,
-                    step=1,
-                    key="select_sensitivity_percentile",
-                )
+            sensitives = analysis.npv_sensitivity(50)
 
-            sensitives = analysis.npv_sensitivity(percentile)
-
-            mask = sensitives["Scenario"] == scenario
-
-            grouper = sensitives.loc[mask].groupby("Model")
+            grouper = sensitives.groupby("Model")
+            
             tabs = st.tabs(grouper.groups)
 
             for i, (model, model_data) in enumerate(grouper):
@@ -254,42 +235,10 @@ class Layout:
             """
         )
         if selections:
-            scenario = st.selectbox("Select Scenario", ["Combined", "City", "Highway"])
 
-            low, medium, high = controls.create_triplet(
-                "distribution_plot",
-                "Percentiles to display",
-                0,
-                100,
-                10,
-                50,
-                90,
-                1,
-                ["Low", "Medium", "High"],
-            )
+            # Create the two-subplot figure (PDF on top, CDF below)
+            plotting.create_pdf_cdf_histogram()
 
-            # Retrieve the simulation models from session_state
-            models = st.session_state["simulation_models"]
-
-            # Create one tab per model in the session
-            tabs = st.tabs(list(models.keys()))
-            for i, (model_name, model_obj) in enumerate(models.items()):
-                with tabs[i]:
-                    npv_array = model_obj.data["npv"][scenario]
-                    if npv_array is None:
-                        st.warning(
-                            f"No NPV data available for {model_name} in {scenario}"
-                        )
-                        continue
-
-                    # Sum across all forecast years to get a single total NPV per iteration
-                    total_npv = npv_array.sum(axis=1)
-
-                    # Create the two-subplot figure (PDF on top, CDF below)
-                    fig = plotting.create_pdf_cdf_histogram(
-                        total_npv, model_name, scenario, low, medium, high
-                    )
-                    st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Select models to create NPV distribution")
 

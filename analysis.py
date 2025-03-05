@@ -115,6 +115,7 @@ def monte_carlo_forecast(years=10, iterations=1000, distributions=None, **kwargs
     st.session_state["simulation_models"] = models
 
 
+
 def collect_npvs(sensitivities, row, treatment, percentile):
     """
     Collects the NPV data from each model and scenario at a given percentile.
@@ -147,6 +148,39 @@ def collect_npvs(sensitivities, row, treatment, percentile):
             sensitivities.append(sensitivity)
 
 
+def get_bounds(uid="distributions"):
+    """
+    Reads the user's current P10/P90 inputs from Streamlit state for each distribution
+    and returns a DataFrame with columns:
+        ['Parameter', 'Lower Bound', 'Upper Bound'].
+    The 'Parameter' is the label you passed to create_dist(...).
+    The 'Lower Bound' is the P10 value, and 'Upper Bound' is the P90 value.
+    """
+    bounds_list = []
+
+    # Make sure 'uid' exists in session_state
+    if uid in st.session_state:
+        # Each 'label' is the parameter name used in create_dist(... label="some label" ...)
+        for label in st.session_state[uid].keys():
+            # Build the keys that create_triplet uses for P10/P90
+            low_key = f"{uid}_{label}_low"   # e.g. "distributions_Price of Gasoline ($/L)_low"
+            high_key = f"{uid}_{label}_high"
+
+            # Check if those keys exist in session_state
+            if low_key in st.session_state and high_key in st.session_state:
+                # Grab the current user inputs for P10 / P90
+                p10_val = st.session_state[low_key]
+                p90_val = st.session_state[high_key]
+
+                # Add a row with the parameter name and its P10/P90
+                bounds_list.append({
+                    "Parameter": label, 
+                    "Lower Bound": p10_val, 
+                    "Upper Bound": p90_val
+                })
+
+    return pd.DataFrame(bounds_list)
+
 def npv_sensitivity(percentile=50):
     """
     Computes the NPV sensitivity by:
@@ -164,7 +198,7 @@ def npv_sensitivity(percentile=50):
         pd.DataFrame: A pivoted DataFrame showing how NPV changes under Low/High
                       parameter values for each model and scenario.
     """
-    bounds_df = data.get_bounds()
+    bounds_df = get_bounds()
     sensitivities = []
 
     # Baseline run

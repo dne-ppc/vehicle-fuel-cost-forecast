@@ -124,38 +124,56 @@ class Model:
 
 def select_models():
     """
-    Renders a UI widget to allow multiple model selections.
-    Generates Model instances for each selected model and stores them
-    in session state as 'simulation_models'.
+    Renders two selectbox widgets to choose exactly two models.
+    Generates Model instances for each selected model and stores
+    them in session state as 'simulation_models'.
 
     Returns:
         list: A list of selected model IDs.
     """
-    selected_models = st.multiselect(
-        label="Select the models", options=models.ID, max_selections=2
-    )
+    col1, col2 = st.columns(2)
 
-    if not select_models:
-        st.session_state.simulation_models = {}
-        st.session_state.selected_models = []
+    with col1:
+        selected_model_a = st.selectbox(
+            label="Select Model A",
+            options=models.ID.tolist(),  # Ensure it's a list of model IDs
+            key="model_a"
+        )
 
+    with col2:
+        selected_model_b = st.selectbox(
+            label="Select Model B",
+            options=models.ID.tolist(),
+            key="model_b"
+        )
+
+    # Build the final list. You could optionally enforce that A != B here.
+    selected_models = []
+    if selected_model_a:
+        selected_models.append(selected_model_a)
+    if selected_model_b:
+        selected_models.append(selected_model_b)
+
+    # Clear out any previously stored models to avoid collisions,
+    # then build fresh Model instances for each selection.
     processed_models = {}
     for selected in selected_models:
-        model = models.loc[models.ID == selected].squeeze()
-        model_dict = model.to_dict()
-        ID = model_dict.pop("ID")
-        Fuel = model_dict.pop("Fuel")
-        year = model_dict.pop("Year")
-        Vehicle_Class = model_dict.pop("Veh Class")
+        row = models.loc[models.ID == selected].squeeze()
+        row_dict = row.to_dict()
+        ID = row_dict.pop("ID")
+        Fuel = row_dict.pop("Fuel")
+        year = row_dict.pop("Year")
+        Vehicle_Class = row_dict.pop("Veh Class")
 
         processed_models[ID] = Model(
             ID=ID,
             Fuel=Fuel,
             Year=year,
             Vehicle_Class=Vehicle_Class,
-            theoretical_efficiency=model_dict,
+            theoretical_efficiency=row_dict,
         )
-
+        
+        
     st.session_state.simulation_models = processed_models
     st.session_state.selected_models = selected_models
 
