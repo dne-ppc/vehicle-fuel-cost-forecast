@@ -119,10 +119,6 @@ def create_forecast_plot():
             )
             color = scenario_colors[scenario]
 
-            # We'll track which subplot index we are on
-            # row = scenario index (1..3)
-            # col = measure index (1..3)
-
 
             for row_idx, scenario in enumerate(scenarios, start=1):
                 color = scenario_colors.get(scenario)

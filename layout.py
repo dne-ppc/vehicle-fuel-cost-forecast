@@ -29,7 +29,9 @@ class Layout:
         # Get unique classes, years, and fuels from the data
         classes = sorted(list(data.models["Veh Class"].unique()))
         years = sorted(list(data.models["Year"].unique()))
-        fuels = sorted(list(data.models["Fuel"].unique()))  # e.g. ["Gasoline", "Electricity"]
+        fuels = sorted(
+            list(data.models["Fuel"].unique())
+        )  # e.g. ["Gasoline", "Electricity"]
 
         # UI Inputs
         # Create 6 columns so we have room for fuel type
@@ -58,11 +60,11 @@ class Layout:
         # Start filtering the data by class, year, and fuel
         mask = data.models.ID == data.models.ID
         if selected_class:
-            mask &= (data.models["Veh Class"] == selected_class)
+            mask &= data.models["Veh Class"] == selected_class
         if selected_year:
-            mask &= (data.models["Year"] == selected_year)
+            mask &= data.models["Year"] == selected_year
         if selected_fuel:
-            mask &= (data.models["Fuel"] == selected_fuel)
+            mask &= data.models["Fuel"] == selected_fuel
 
         # Filter the DataFrame by the user’s selection
         df_filtered = data.models[mask]
@@ -205,11 +207,11 @@ class Layout:
 
             sensitives = analysis.npv_sensitivity(50)
 
-            grouper = sensitives.groupby("Model")
-            
-            tabs = st.tabs(grouper.groups)
+            models = st.session_state.simulation_models
+            tabs = st.tabs(list(models.keys()))
 
-            for i, (model, model_data) in enumerate(grouper):
+            for i, (model) in enumerate(models.keys()):
+                model_data = sensitives.loc[sensitives.Model == model]
                 with tabs[i]:
                     plotting.create_tornado_figure(model_data, model)
         else:
