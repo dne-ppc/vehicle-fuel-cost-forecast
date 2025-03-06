@@ -6,10 +6,7 @@ metalog
 matplotlib
 scipy
 pyyaml
-joblib
-numba
-duckdb
 openpyxl
-fastapi
+fastapi[standard]
 pydantic
-pydantic-numpy
+

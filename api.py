@@ -67,11 +67,8 @@ def run_simulation(request: SimulationRunRequest):
     simulation.load_vehicles(request.vehicle_ids)
     simulation.monte_carlo_forecast()
 
-    # For each vehicle, return the forecast results in a JSON-friendly format
-    results = {}
-    for vehicle_id, vehicle in simulation.vehicles.items():
-        results[vehicle_id] = vehicle.to_forecast_result()
-    return results
+    return simulation
+
 
 
 @app.post("/simulation/sensitivity")

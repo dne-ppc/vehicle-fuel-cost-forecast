@@ -1,21 +1,24 @@
 # models.py
-from typing import Dict, List, Optional, TypeVar
+from typing import Dict, List, Optional, TypeVar, Union
+from io import StringIO
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-from pydantic import BaseModel, Field
-import pydantic_numpy.typing as pnd
+from pydantic import BaseModel, Field, field_validator
 from metalog import metalog
 import yaml
 import itertools
 
 
 PandasDataFrame = TypeVar("pandas.core.frame.DataFrame")
+NdArray = TypeVar("numpy.ndarray")
 kWh_per_gal = 33.41  # https://en.wikipedia.org/wiki/Gasoline_gallon_equivalent
 gal_per_liter = 0.2199692
 kWh_per_liter = kWh_per_gal * gal_per_liter
 liter_per_kWh = 1 / kWh_per_liter
+
+np.float_ = np.float64
 
 
 class ScenarioResult(BaseModel):
@@ -51,7 +54,12 @@ class Vehicle(BaseModel):
 
     # This dictionary maps "dollars_per_km", "dollars", "npv" → scenario → array
     # We'll init it in __init__ so each Model instance has fresh structures.
-    data: Dict[str, Dict[str, Optional[pnd.NpNDArray]]] = Field(default_factory=dict)
+    data: Dict[str, Dict[str, Optional[NdArray]]] = Field(default_factory=dict)
+
+    class Config:
+        json_encoders = {
+            NdArray: lambda arr: arr.tolist(),
+        }
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -332,16 +340,49 @@ class Simulation(BaseModel):
 
     vehicles: Optional[Dict[str, Vehicle]] = Field(default_factory=dict)
     distributions: Optional[Dict[str, Distribution]] = Field(default_factory=dict)
-    distribution_data: Optional[Dict[str, pnd.NpNDArray]] = Field(default_factory=dict)
+    distribution_data: Optional[Dict[str, NdArray]] = Field(default_factory=dict)
     models: PandasDataFrame = None
 
     def __init__(self, **data):
         super().__init__(**data)
-        self.models = pd.read_csv("data/models.csv")
+        if "models" not in data:
+            self.models = pd.read_csv("data/models.csv")
         for distribution_ in self.get_config()["distributions"]:
             distribution = Distribution(**distribution_)
 
             self.distributions[distribution.label] = distribution
+
+    @classmethod
+    def load(cls, data: Union[str, dict]) -> "Simulation":
+        """
+        Creates a Simulation instance from a JSON string or dict.
+        """
+        if isinstance(data, str):
+            return cls.model_validate_strings(data)
+        elif isinstance(data, dict):
+            return cls.model_validate_json(data)
+        else:
+            raise TypeError("Input must be a JSON string or dictionary.")
+
+    @field_validator("models")
+    def parse_dataframe(cls, value):
+        # If a string is passed in, assume it's a JSON representation.
+        if isinstance(value, str):
+            return pd.read_json(StringIO(value), orient="split")
+        # If a dict is passed in, assume it's in a structure convertible to DataFrame.
+        elif isinstance(value, dict):
+            return pd.DataFrame(value)
+        elif isinstance(value, pd.DataFrame):
+            return value
+        else:
+            raise ValueError("Invalid type for dataframe field")
+        
+
+    class Config:
+        json_encoders = {
+            PandasDataFrame: lambda df: df.to_json(orient="split"),
+            NdArray: lambda arr: arr.tolist(),
+        }
 
     def get_config(self):
         with open("data/config.yaml", "r") as f:
@@ -395,7 +436,9 @@ class Simulation(BaseModel):
 
         with col2:
             selected_model_b = st.selectbox(
-                label="Select Vehicle B", options=self.models.ID.tolist(), key="vehicle_b"
+                label="Select Vehicle B",
+                options=self.models.ID.tolist(),
+                key="vehicle_b",
             )
 
         selected_models = []
@@ -489,8 +532,8 @@ class Simulation(BaseModel):
             )
 
         return pd.DataFrame(bounds_list)
-    
-    def collect_npvs(self,sensitivities, row, treatment, percentile):
+
+    def collect_npvs(self, sensitivities, row, treatment, percentile):
         """
         Collects the NPV data from each model and scenario at a given percentile.
 
@@ -520,7 +563,6 @@ class Simulation(BaseModel):
                     sensitivity["Upper Bound"] = row["Upper Bound"]
 
                 sensitivities.append(sensitivity)
-
 
     def npv_sensitivity(self, percentile=50):
         """
