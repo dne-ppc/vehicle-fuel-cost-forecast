@@ -13,7 +13,7 @@ class Layout:
     """
 
     @staticmethod
-    def models(*args, **kwargs):
+    def models(simulation:Simulation,*args, **kwargs):
         st.header("Models: Find Best/Worst-Performing Vehicles")
         st.markdown(
             """
@@ -26,10 +26,10 @@ class Layout:
         st.subheader("Find Best or Worst Efficiency Models")
 
         # Get unique classes, years, and fuels from the data
-        classes = sorted(list(data.models["Veh Class"].unique()))
-        years = sorted(list(data.models["Year"].unique()))
+        classes = sorted(list(simulation.models["Veh Class"].unique()))
+        years = sorted(list(simulation.models["Year"].unique()))
         fuels = sorted(
-            list(data.models["Fuel"].unique())
+            list(simulation.models["Fuel"].unique())
         )  # e.g. ["Gasoline", "Electricity"]
 
         # UI Inputs
@@ -57,16 +57,16 @@ class Layout:
             selected_fuel = st.selectbox("Select Fuel Type", fuels, index=None)
 
         # Start filtering the data by class, year, and fuel
-        mask = data.models.ID == data.models.ID
+        mask = simulation.models.ID == simulation.models.ID
         if selected_class:
-            mask &= data.models["Veh Class"] == selected_class
+            mask &= simulation.models["Veh Class"] == selected_class
         if selected_year:
-            mask &= data.models["Year"] == selected_year
+            mask &= simulation.models["Year"] == selected_year
         if selected_fuel:
-            mask &= data.models["Fuel"] == selected_fuel
+            mask &= simulation.models["Fuel"] == selected_fuel
 
         # Filter the DataFrame by the user’s selection
-        df_filtered = data.models[mask]
+        df_filtered = simulation.models[mask]
 
         # Group the filtered data by fuel type (though at this point
         # we expect only one selected_fuel in df_filtered),
@@ -373,9 +373,9 @@ def create_tabs():
         "Process Explanation",
         "Models",
         "Forecasts",
-        # 'debug',
         "NPV Sensitivity",
         "NPV Distribution",
+        # 'debug',
     ]
 
     tabs = st.tabs(names)
