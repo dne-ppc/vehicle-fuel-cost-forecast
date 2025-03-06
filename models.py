@@ -49,14 +49,6 @@ class Vehicle(BaseModel):
     # (Used by run_simulation to compute actual cost arrays.)
     theoretical_efficiency: Dict[str, Optional[float]] = Field(default_factory=dict)
 
-    # Because Pydantic tries to validate everything, we store NumPy arrays in a private attribute.
-    # By default, these won't appear in JSON output.
-    class Config:
-        underscore_attrs_are_private = True
-        allow_population_by_field_name = (
-            True  # So "Veh Class" can map to "Vehicle_Class" if needed
-        )
-
     # This dictionary maps "dollars_per_km", "dollars", "npv" → scenario → array
     # We'll init it in __init__ so each Model instance has fresh structures.
     data: Dict[str, Dict[str, Optional[pnd.NpNDArray]]] = Field(default_factory=dict)
@@ -70,10 +62,10 @@ class Vehicle(BaseModel):
 
     @classmethod
     def make_comparison(
-        cls, model_a: "Vehicle", model_b: "Vehicle", interest_rates: np.array
+        cls, vehicle_a: "Vehicle", vehicle_b: "Vehicle", interest_rates: np.array
     ) -> "Vehicle":
         """
-        Creates a new VehicleModel representing the difference (model_a - model_b)
+        Creates a new VehicleModel representing the difference (vehicle_a - vehicle_b)
         in all cost measures for each scenario. This is the main way to compare
         two existing models after their costs have been computed.
 
@@ -82,12 +74,12 @@ class Vehicle(BaseModel):
           - Fuel = "A_fuel vs B_fuel"
           - comparison = True
           - arrays:
-            dollars_per_km[scenario] = (model_a - model_b)
-            dollars[scenario] = (model_a - model_b)
-            npv[scenario] = (model_a - model_b)
+            dollars_per_km[scenario] = (vehicle_a - vehicle_b)
+            dollars[scenario] = (vehicle_a - vehicle_b)
+            npv[scenario] = (vehicle_a - vehicle_b)
         """
-        ID = f"{model_a.ID} vs {model_b.ID}"
-        Fuel = f"{model_a.Fuel} vs {model_b.Fuel}"
+        ID = f"{vehicle_a.ID} vs {vehicle_b.ID}"
+        Fuel = f"{vehicle_a.Fuel} vs {vehicle_b.Fuel}"
         new_model = cls(
             ID=ID,
             Fuel=Fuel,
@@ -97,11 +89,11 @@ class Vehicle(BaseModel):
         )
 
         for scenario in new_model.theoretical_efficiency.keys():
-            a_dollars_per_km = model_a.data["dollars_per_km"][scenario]
-            b_dollars_per_km = model_b.data["dollars_per_km"][scenario]
+            a_dollars_per_km = vehicle_a.data["dollars_per_km"][scenario]
+            b_dollars_per_km = vehicle_b.data["dollars_per_km"][scenario]
 
-            a_dollars = model_a.data["dollars"][scenario]
-            b_dollars = model_b.data["dollars"][scenario]
+            a_dollars = vehicle_a.data["dollars"][scenario]
+            b_dollars = vehicle_b.data["dollars"][scenario]
 
             dollar_difference = a_dollars - b_dollars
 
@@ -396,14 +388,14 @@ class Simulation(BaseModel):
 
         with col1:
             selected_model_a = st.selectbox(
-                label="Select Model A",
+                label="Select Vehicle A",
                 options=self.models.ID.tolist(),  # Ensure it's a list of model IDs
-                key="model_a",
+                key="vehicle_a",
             )
 
         with col2:
             selected_model_b = st.selectbox(
-                label="Select Model B", options=self.models.ID.tolist(), key="model_b"
+                label="Select Vehicle B", options=self.models.ID.tolist(), key="vehicle_b"
             )
 
         selected_models = []
