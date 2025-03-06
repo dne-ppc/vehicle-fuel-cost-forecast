@@ -1,10 +1,9 @@
 import streamlit as st
 import data
-import controls
-import analysis
 import plotting
 import pandas as pd
 import plotly.express as px
+from models import Simulation
 
 
 class Layout:
@@ -120,30 +119,13 @@ class Layout:
             """
         )
         st.divider()
-        selections = controls.select_models()
 
-        col1, col2 = st.columns(2)
-
-        with col1:
-            years = st.number_input(
-                "Years", min_value=1, max_value=20, value=10, step=1
-            )
-            st.session_state.years = years
-
-        with col2:
-            iterations = st.number_input(
-                "Iterations", min_value=1, max_value=10000, value=10000, step=100
-            )
-            st.session_state.iterations = iterations
-
-        st.divider()
-        for dist in data.get_config()["distributions"]:
-            controls.create_dist("distributions", **dist)
-
-        return selections
+        simulation: Simulation = st.session_state.simulation
+        simulation.create_controls()
+        simulation.monte_carlo_forecast()
 
     @staticmethod
-    def forecasts(selections, *args, **kwargs):
+    def forecasts(simulation: Simulation, *args, **kwargs):
         """
         Displays forecast results for the selected models. Allows the user to choose
         a measure (dollars_per_km, dollars, npv) and whether it should be shown cumulatively.
@@ -166,16 +148,13 @@ class Layout:
             """
         )
 
-        if selections:
-
-            analysis.monte_carlo_forecast(**st.session_state)
-
-            plotting.create_forecast_plot()
+        if simulation.vehicles:
+            plotting.create_forecast_plot(simulation)
         else:
             st.info("Select models to create forecasts")
 
     @staticmethod
-    def npv_sensitivity(selections, *args, **kwargs):
+    def npv_sensitivity(simulation: Simulation, *args, **kwargs):
         """
         Displays an NPV sensitivity analysis for the selected models.
         This calculates how changes in parameters (e.g., fuel price, interest rate)
@@ -203,14 +182,13 @@ class Layout:
             - The values beside the bar show the value the parameter was set to for the simulation
             """
         )
-        if selections:
+        if simulation.vehicles:
 
-            sensitives = analysis.npv_sensitivity(50)
+            sensitives = simulation.npv_sensitivity(50)
 
-            models = st.session_state.simulation_models
-            tabs = st.tabs(list(models.keys()))
+            tabs = st.tabs(list(simulation.vehicles.keys()))
 
-            for i, (model) in enumerate(models.keys()):
+            for i, (model) in enumerate(simulation.vehicles.keys()):
                 model_data = sensitives.loc[sensitives.Model == model]
                 with tabs[i]:
                     plotting.create_tornado_figure(model_data, model)
@@ -218,7 +196,7 @@ class Layout:
             st.info("Select models to create sensitivity")
 
     @staticmethod
-    def npv_distribution(selections, *args, **kwargs):
+    def npv_distribution(simulation: Simulation, *args, **kwargs):
         """
         Displays a PDF & CDF histogram for total NPV values for each model,
         based on the selected scenario (City, Combined, or Highway).
@@ -236,10 +214,10 @@ class Layout:
             you choose to highlight. This helps you understand the risk spread of outcomes.
             """
         )
-        if selections:
+        if simulation.vehicles:
 
             # Create the two-subplot figure (PDF on top, CDF below)
-            plotting.create_pdf_cdf_histogram()
+            plotting.create_pdf_cdf_histogram(simulation)
 
         else:
             st.info("Select models to create NPV distribution")
@@ -354,7 +332,7 @@ class Layout:
         )
 
     @staticmethod
-    def dispatch(func_name: str, selections):
+    def dispatch(func_name: str):
         """
         Dispatch method that calls one of the Layout's static methods by name.
 
@@ -367,19 +345,20 @@ class Layout:
         """
         func = getattr(Layout, func_name, None)
         if func is not None:
-            func(selections)
+            simulation: Simulation = st.session_state.simulation
+            func(simulation)
         else:
             st.error("Invalid tab name")
 
     @staticmethod
-    def debug(selections, *args, **kwargs):
+    def debug(simulation: Simulation, *args, **kwargs):
         """
         Utility method to inspect the Streamlit session state for debugging purposes.
         """
-        st.write(st.session_state)
+        st.json(simulation.json(exclude={"models"}))
 
 
-def create_tabs(selections):
+def create_tabs():
     """
     Creates Streamlit tabs and dispatches to the relevant layout sections.
     Each tab corresponds to a method in the Layout class.
@@ -394,6 +373,7 @@ def create_tabs(selections):
         "Process Explanation",
         "Models",
         "Forecasts",
+        # 'debug',
         "NPV Sensitivity",
         "NPV Distribution",
     ]
@@ -403,4 +383,4 @@ def create_tabs(selections):
     for tab, tab_name in zip(tabs, names):
         with tab:
             func_name = tab_name.lower().replace(" ", "_")
-            Layout.dispatch(func_name, selections)
+            Layout.dispatch(func_name)

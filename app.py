@@ -1,6 +1,6 @@
 import streamlit as st
 import layout
-from data import models
+from models import Simulation
 
 
 st.set_page_config(page_title="Vehicle Operating Cost Forecast", layout="wide")
@@ -17,21 +17,9 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Initialize session state defaults if they haven't been set
-if "years" not in st.session_state:
-    st.session_state.years = 10
 
-if "iterations" not in st.session_state:
-    st.session_state.iterations = 1000
-
-if "simulation_models" not in st.session_state:
-    st.session_state.simulation_models = {}
-
-if "selected_models" not in st.session_state:
-    st.session_state.selected_models = []
-
-if "distribution_data" not in st.session_state:
-    st.session_state.distribution_data = {}
+if "simulation" not in st.session_state:
+    st.session_state.simulation = Simulation()
 
 
 with st.sidebar:
@@ -39,10 +27,10 @@ with st.sidebar:
     # Renders the controls layout in the sidebar, which lets the user select models
     # and adjust distributions and parameters for the forecast.
     # 
-    selections = layout.Layout.controls()
+    layout.Layout.controls()
 
 # 
 # Main content area that creates the various tabs (Models, Forecasts, NPV Sensitivity, etc.)
 # based on user selections, and dispatches to the appropriate methods in layout.py
 # 
-layout.create_tabs(selections)
+layout.create_tabs()

@@ -1,69 +1,13 @@
-from typing import Dict
 import streamlit as st
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import plotly.express as px
-import controls
-
+from models import Simulation
 
 np.float_ = np.float64
 
 
-def create_dist_plot(m: str):
-    """
-    Creates a distribution plot (PDF + CDF) from a Metalog object.
-
-    Args:
-        m (str): A Metalog distribution dictionary returned by metalog.fit().
-
-    Returns:
-        go.Figure: A Plotly figure with two traces: PDF (left Y-axis) and CDF (right Y-axis).
-    """
-    quantiles = m["M"].iloc[:, 1]
-    pdf_values = m["M"].iloc[:, 0]
-    cdf_values = m["M"]["y"]
-
-    fig = go.Figure()
-    fig.add_trace(
-        go.Scatter(
-            x=quantiles,
-            y=pdf_values / sum(pdf_values),
-            mode="lines",
-            name="PDF",
-            line=dict(color="blue"),
-            yaxis="y1",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=quantiles,
-            y=cdf_values,
-            mode="lines",
-            name="CDF",
-            line=dict(color="red", dash="dash"),
-            yaxis="y2",
-        )
-    )
-    fig.update_layout(
-        xaxis=dict(title="Value"),
-        yaxis=dict(title="PDF", title_font_color="blue", tickfont_color="blue"),
-        yaxis2=dict(
-            title="CDF",
-            title_font_color="red",
-            tickfont_color="red",
-            overlaying="y",
-            side="right",
-        ),
-        legend=dict(x=0, y=1.1, orientation="h"),
-        template="plotly",
-        hovermode="x unified",
-    )
-    return fig
-
-
-def create_forecast_plot():
+def create_forecast_plot(simulation: Simulation):
     """
     Produces a 3×3 grid of subplots (for each selected model):
       Rows: 3 scenarios (City, Combined, Highway)
@@ -72,17 +16,17 @@ def create_forecast_plot():
     Each subplot shows P10/P50/P90 lines (with fill between P10 & P90)
     based on user-selected percentiles.
     """
-    models = st.session_state.simulation_models
+    vehicles = simulation.vehicles
     low = 10
     medium = 50
     high = 90
 
-    if not models:
+    if not vehicles:
         st.warning("No models found. Please select models first.")
         return
 
     # Create one Streamlit Tab per model
-    tabs = st.tabs(list(models.keys()))
+    tabs = st.tabs(list(vehicles.keys()))
 
     # Define scenarios (each will be its own row)
     scenarios = ["City", "Combined", "Highway"]
@@ -100,7 +44,7 @@ def create_forecast_plot():
         "Highway": "rgba(0,0,255,{alpha})",
     }
 
-    for i, (model_name, model_obj) in enumerate(models.items()):
+    for i, (model_name, model_obj) in enumerate(vehicles.items()):
         with tabs[i]:
             # Build the list of titles for each subplot: 3 rows × 3 columns
             subplot_titles = []
@@ -376,7 +320,7 @@ def create_tornado_figure(df, model_name="Tornado Chart", x_axis_title="NPV"):
     st.plotly_chart(fig, use_container_width=True)
 
 
-def create_pdf_cdf_histogram():
+def create_pdf_cdf_histogram(simulation:Simulation):
     """
     Creates a 2×3 figure:
       - 2 rows: Top row is PDF (Histogram), bottom row is CDF (Cumulative Histogram)
@@ -397,30 +341,20 @@ def create_pdf_cdf_histogram():
         go.Figure: A Plotly figure with 2 rows and 3 columns of subplots (PDF & CDF x 3 scenarios).
     """
 
-    # low, medium, high = controls.create_triplet(
-    #     "distribution_plot",
-    #     "Percentiles to display",
-    #     0,
-    #     100,
-    #     10,
-    #     50,
-    #     90,
-    #     1,
-    #     ["Low", "Medium", "High"],
-    # )
+
     low = 10
     medium = 50
     high = 90
 
     scenario_names = ["City", "Combined", "Highway"]
 
-    models = st.session_state["simulation_models"]
+    vehicles = simulation.vehicles
     scenario_colors = {"City": "blue", "Combined": "green", "Highway": "red"}
     
 
     # Create one tab per model in the session
-    tabs = st.tabs(list(models.keys()))
-    for i, (model_name, model) in enumerate(models.items()):
+    tabs = st.tabs(list(vehicles.keys()))
+    for i, (model_name, model) in enumerate(vehicles.items()):
         with tabs[i]:
 
             fig = make_subplots(
